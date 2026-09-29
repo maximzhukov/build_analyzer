@@ -12,7 +12,7 @@ def render_mapping(project_id: int):
     
     st.success("Загружен базовый план")
     
-    st.subheader("📋 План производства работ")
+    st.subheader("План производства работ")
     
     stages = data["stages"]
     
@@ -21,8 +21,6 @@ def render_mapping(project_id: int):
     for stage in stages:
         
         vol_str = str(stage["target_volume"])
-        if not vol_str.endswith("м3") and not vol_str.endswith("м2") and not vol_str.endswith("т"):
-            vol_str += " м3"
             
         formatted_stages.append({
             "Наименование работ": stage["name"],

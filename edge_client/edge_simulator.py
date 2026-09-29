@@ -117,7 +117,7 @@ def send_daily_images(images, simulation_date):
 
         try:
             with open(img_path, "rb") as image_file:
-                new_filename = f"{current_virtual_time.strftime('%Y%m%d_%H_%M_%S')}_frame.jpg"
+                new_filename = f"{current_virtual_time.strftime('%Y%m%d_%H_%M_%S')}_frame.png"
                 files = {"file": (new_filename, image_file, "image/jpeg")}
                 response = requests.post(TARGET_URL, files=files)
 

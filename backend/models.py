@@ -10,8 +10,7 @@ class Project(Base):
     name = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    
-    stages = relationship("Stage", back_populates="project")
+    stages = relationship("Stage", back_populates="project", order_by="Stage.id")
 
 class Stage(Base):
     __tablename__ = "stages"

@@ -1,6 +1,4 @@
 *.pt
 __pycache__
-*.png
-*.jpg
 *.mp4
 env

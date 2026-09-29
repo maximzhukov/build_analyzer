@@ -39,6 +39,8 @@ services:
       - API_URL=http://backend:8000
     depends_on:
       - backend
+    volumes:
+      - ./edge_client/annotated_frames:/app/uploads/annotated
 
 volumes:
   pgdata:

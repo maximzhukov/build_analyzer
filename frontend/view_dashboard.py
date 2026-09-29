@@ -1,12 +1,21 @@
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import requests
 from datetime import datetime, timedelta
 from api_client import get_project_data
-from gantt_component import render_custom_gantt  
+from gantt_component import render_custom_gantt
+from media_utils import generate_timelapse
+from config import ANNOTATED_DIR, TIMELAPSE_PATH
 
-API_BASE_URL = "http://backend:8000"
+API_BASE_URL = os.getenv("API_URL", "http://backend:8000")
+
+def render_timelapse(path):
+    if not os.path.exists(path):
+        st.error("Таймлапс еще не создан")
+        return
+    st.video(path, autoplay=True, loop=True, muted=True)
 
 def render_dashboard(project_id: int):
     st.header("Сводка за текущий день")
@@ -31,12 +40,13 @@ def render_dashboard(project_id: int):
         end_dt = pd.to_datetime(stage.get("end_date")) if stage.get("end_date") else today
         progress_pct = (current / target * 100) if target > 0 else 0
         
+       
         if end_dt < today and progress_pct < 100:
             delay_days = (today - end_dt).days
             if delay_days > 0:
                 delays.append({"name": name, "days": delay_days})
 
-        
+       
         if 0 < progress_pct < 100:
             active_details.append({
                 "id": stage_id,
@@ -49,27 +59,27 @@ def render_dashboard(project_id: int):
 
     project_status = "Частично отстает от графика" if delays else "В графике"
 
+   
     col1, col2 = st.columns(2)
     with col1:
         st.metric(label="Статус проекта", value=project_status)
     st.markdown("---")
 
     if active_details:
-        st.info("Активные этапы:")
+        st.info("Активные этапы (в работе):")
         st.markdown("<br>", unsafe_allow_html=True)
         
         for i, activity in enumerate(active_details, 1):
             col_num, col_content = st.columns([0.05, 0.95])
             
             with col_num:
-                st.markdown(f"##
+                st.markdown(f"### {i}.")
                 
             with col_content:
                 st.dataframe(
                     pd.DataFrame([{
                         "Этап": activity["name"],
                         "Выполнено всего": f"{activity['cumulative_progress']}%",
-                        "Объем за сегодня": f"{activity['today_percent']}%",
                     }]),
                     hide_index=True,
                     use_container_width=True,
@@ -105,13 +115,22 @@ def render_dashboard(project_id: int):
                     
             st.markdown("<hr style='margin-top: 2rem; margin-bottom: 2rem; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
     else:
-        st.info("Сегодня не выявлено активных этапов")
+        st.info("Сегодня не выявлено активных этапов (нет начислений объема)")
 
+   
+    if delays:
+        st.error("Отставания:")
+        st.dataframe(
+            pd.DataFrame(delays).rename(columns={"name": "Название этапа", "days": "Дней просрочки"}),
+            hide_index=True,
+            use_container_width=True
+        )
+        st.markdown("---")
+   
     
     st.subheader("График производства работ (Диаграмма Ганта)")
     render_custom_gantt(stages, height=480)
     st.markdown("---")
-    
     
     st.subheader("Визуальный контроль")
     if "active_media" not in st.session_state:
@@ -120,7 +139,16 @@ def render_dashboard(project_id: int):
     col_media, col_controls = st.columns([3, 2])
 
     with col_media:
-        st.info(f"Отображение режима: {st.session_state.active_media.upper()}")
+        if st.session_state.active_media == "timelapse":
+            with st.spinner("Склеиваем кадры за сегодня... (занимает ~5 секунд)"):
+                success = generate_timelapse(input_folder=ANNOTATED_DIR, output_file=TIMELAPSE_PATH)
+                if success:
+                    st.success("Таймлапс успешно сгенерирован!")
+                    render_timelapse(TIMELAPSE_PATH)
+                else:
+                    st.error("Не найдены кадры в папке (проверьте наличие demo_frames).")
+        else:
+            st.info("Ожидание видеопотока с камеры (LIVE)...")
 
     with col_controls:
         is_timelapse_active = st.session_state.active_media == "timelapse"

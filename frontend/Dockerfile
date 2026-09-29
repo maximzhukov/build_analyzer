@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-RUN pip install streamlit pandas requests plotly
+RUN pip install streamlit pandas requests plotly opencv-python-headless
 
 COPY ./frontend /app/frontend
 

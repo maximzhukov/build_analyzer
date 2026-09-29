@@ -13,7 +13,7 @@ def _project_path(env_name, default):
     return str(path if path.is_absolute() else PROJECT_DIR / path)
 
 ANNOTATED_DIR = str(PROJECT_DIR / "uploads" / "annotated")
-TIMELAPSE_PATH = str(PROJECT_DIR / "uploads" / "timelapse.mp4")
+TIMELAPSE_PATH = str(PROJECT_DIR / "uploads" / "timelapse.webm")
 LIVE_PATH = _project_path(
     "LIVE_PATH", PROJECT_DIR.parent / "edge_sim" / "live" / "camera.mp4"
 )
