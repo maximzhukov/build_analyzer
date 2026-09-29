@@ -114,17 +114,17 @@ async def upload_project_plan(
     
     db.commit()
     
-    # 🔴 МАГИЯ РАЗМАЗЫВАНИЯ ОБЪЕМА ПО ДНЯМ 
+   
     today = datetime.utcnow().date()
     yesterday = today - timedelta(days=1)
 
     for stage in db.query(models.Stage).filter(models.Stage.project_id == project.id).all():
         if stage.current_volume > 0:
-            # Берем дату начала, либо вчера (если даты нет)
+           
             start_d = stage.start_date.date() if stage.start_date else yesterday
             end_d = yesterday
             
-            # Если этап начался в будущем, рисуем прогресс только на вчерашний день
+           
             if end_d < start_d:
                 start_d = end_d
                 
@@ -135,12 +135,12 @@ async def upload_project_plan(
             vol_per_day = stage.current_volume / days_diff
             current_accumulated = 0.0
             
-            # Генерируем точки на каждый прошедший день
+           
             for i in range(days_diff):
                 current_d = start_d + timedelta(days=i)
                 current_accumulated += vol_per_day
                 
-                # Ставим точку на конец смены (18:00) каждого дня
+               
                 timestamp = datetime.combine(current_d, datetime.min.time()) + timedelta(hours=18)
                 
                 init_telemetry = models.Telemetry(
@@ -188,7 +188,7 @@ def get_stage_history(stage_id: int, db: Session = Depends(get_db)):
     
     history = []
     
-    # Отдаем ВСЮ историю с точными ISO датами
+   
     for r in records:
         history.append({
             "time": r.timestamp.isoformat(), 

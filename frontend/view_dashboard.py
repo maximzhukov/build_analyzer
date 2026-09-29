@@ -52,7 +52,7 @@ def render_dashboard(project_id: int):
             except:
                 history_resp = {}
 
-            # ЕСЛИ СЕГОДНЯ НЕ БЫЛО АКТИВНОСТИ - СКРЫВАЕМ ЭТАП
+           
             if not history_resp.get("has_today_activity"):
                 continue
 
@@ -111,7 +111,7 @@ def render_dashboard(project_id: int):
                     )
                     fig.update_traces(line_color="#FF9F1C", line_width=3)
                     fig.update_layout(height=280, margin=dict(l=0, r=0, t=40, b=0), xaxis_title="Дата и время", yaxis_title="Объем (м3)")
-                    # Настраиваем красивый формат оси X (день.месяц Часы:Минуты)
+                   
                     fig.update_xaxes(tickformat="%d.%m\n%H:%M")
                     
                     st.plotly_chart(fig, use_container_width=True)
