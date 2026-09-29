@@ -1,42 +1,22 @@
 import pandas as pd
 from datetime import timedelta
 import streamlit.components.v1 as components
-import json
-import os
-from progress_utils import cumulative_progress, parse_volume
 
-def render_custom_gantt(plan_df, height=480):
-    df = plan_df.copy()
-    df['Начало_dt'] = pd.to_datetime(df['Начало'])
-    df['Окончание_dt'] = pd.to_datetime(df['Окончание'])
+def render_custom_gantt(stages, height=480):
+    if not stages:
+        return
+        
+    df = pd.DataFrame(stages)
+    if 'start_date' not in df.columns or 'end_date' not in df.columns:
+        return
+        
+    df = df.dropna(subset=['start_date', 'end_date'])
+    if df.empty:
+        return
+
+    df['Начало_dt'] = pd.to_datetime(df['start_date'])
+    df['Окончание_dt'] = pd.to_datetime(df['end_date'])
     
-    
-    cv_state_path = os.path.join(os.path.dirname(__file__), "../cv_state.json")
-    try:
-        with open(cv_state_path, "r", encoding="utf-8") as f:
-            cv_state = json.load(f)
-    except Exception:
-        cv_state = {
-            "active_stages": ["Механизированная разработка и выемка грунта котлована"],
-            "progress": {"Exception": 68}
-        }
-
-    active_stages = cv_state.get("active_stages", [])
-    stage_strategies = cv_state.get("stage_strategies", {})
-    history = cv_state.get("history", {})
-    completed_stages = cv_state.get("completed_stages", [])
-
-    
-    active_indices = []
-    for idx, row in df.iterrows():
-        task_name = str(row["Наименование работ"]).strip()
-        stage_id = stage_strategies.get(task_name, task_name)
-        if stage_id in active_stages:
-            active_indices.append(idx)
-            
-    min_active_idx = min(active_indices) if active_indices else -1
-    max_active_idx = max(active_indices) if active_indices else -1
-
     
     min_date = df['Начало_dt'].min() - timedelta(days=3)
     max_date = df['Окончание_dt'].max() + timedelta(days=14)
@@ -71,18 +51,15 @@ def render_custom_gantt(plan_df, height=480):
     left_rows_html, right_rows_html = "", ""
     
     for idx, row in df.iterrows():
-        name = str(row["Наименование работ"]).strip()
+        name = str(row["name"]).strip()
         start_dt, end_dt = row['Начало_dt'], row['Окончание_dt']
         
+        target_volume = float(row.get("target_volume", 0))
+        current_volume = float(row.get("current_volume", 0))
         
-        task_history = history.get(name, {})
-        total_volume = parse_volume(row.get("Объем", 0))
-        progress = cumulative_progress(task_history, total_volume)
-            
-        
-        completed_stages = cv_state.get("completed_stages", [])
-        if name in completed_stages:
-            progress = 100
+        progress = 0
+        if target_volume > 0:
+            progress = min(100, int((current_volume / target_volume) * 100))
             
         offset_days = (start_dt - min_date).days
         duration_days = (end_dt - start_dt).days + 1
@@ -180,5 +157,3 @@ def render_custom_gantt(plan_df, height=480):
     </html>
     """
     components.html(html_code, height=height, scrolling=False)
-
-render_frappe_gantt = render_custom_gantt

@@ -1,69 +1,123 @@
 import time
 import requests
-import random
+import os
+import glob
 import logging
+from ultralytics import YOLO
 
-logging.basicConfig(level=logging.INFO)
-
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 API_URL = "http://localhost:8000/telemetry/"
-CAMERA_ID = "cam_01_pit"
+FRAMES_DIR = "demo_frames"
+MODEL_PATH = "best.pt" 
 
 
 
-ACTIVE_STAGE_ID = 1 
+CLASS_MAPPING = {
+    "samosval": "dump_truck",
+    "truck": "dump_truck",
+    "excavator": "excavator",
+    "ekskavator": "excavator",
+    "Самосвал": "dump_truck",
+    "Экскаватор": "excavator"
+}
 
-def capture_frame():
-    return "dummy_frame_data"
-
-def run_cv_inference(frame):
+def get_active_stage_id():
+    """
+    Умный поиск нужного этапа.
+    Камера делает GET-запрос к API и ищет этап, который NLP-модель 
+    распознала как земляные работы (STAGE_EARTH_WORK).
+    """
+    api_project_url = "http://localhost:8000/projects/1"
     
-    objects = []
-    
-    
-    if random.random() > 0.3:
-        objects.append({"class": "dump_truck", "conf": 0.92, "bbox": [10, 20, 100, 200]})
+    try:
+        response = requests.get(api_project_url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            
+            for stage in data.get("stages", []):
+                
+                if stage.get("nlp_stage_id") == "STAGE_EARTH_WORK":
+                    stage_id = stage["id"]
+                    logging.info(f"🎯 Бэкенд ответил: этап земляных работ найден! Название: '{stage['name']}', ID: {stage_id}")
+                    return stage_id
+                    
+            logging.warning("⚠️ Этап с тегом STAGE_EARTH_WORK не найден в базе!")
+    except Exception as e:
+        logging.error(f"❌ Ошибка связи с бэкендом при поиске этапа: {e}")
         
     
-    if random.random() > 0.5:
-        objects.append({"class": "excavator", "conf": 0.88, "bbox": [300, 150, 400, 350]})
-        
-    return objects
+    return 1
 
-def main_loop():
-    logging.info(f"Запуск Edge-агента {CAMERA_ID}. Анализ видеопотока...")
+def run_demo():
+    stage_id = get_active_stage_id()
+    
+    if not os.path.exists(MODEL_PATH):
+        logging.error(f"Файл модели {MODEL_PATH} не найден!")
+        return
+        
+    logging.info(f"Загрузка модели YOLO из {MODEL_PATH}...")
+    model = YOLO(MODEL_PATH)
+    
+    frame_paths = sorted(glob.glob(os.path.join(FRAMES_DIR, "*.png")))
+    
+    if not frame_paths:
+        logging.error(f"Кадры не найдены в папке {FRAMES_DIR}!")
+        return
+
+    logging.info(f"Найдено {len(frame_paths)} кадров. Запуск реального AI инференса...")
     
     while True:
-        try:
-            
-            frame = capture_frame()
-            
-            
-            detected_objects = run_cv_inference(frame)
+        for path in frame_paths:
+            filename = os.path.basename(path)
             
             
-            if detected_objects:
-                
-                payload = {
-                    "stage_id": ACTIVE_STAGE_ID,
-                    "detected_objects": detected_objects,
-                    "calculated_volume": 0.0 
-                }
+            
+            results = model(path, verbose=False)
+            
+            detected_objects = []
+            
+            
+            for box in results[0].boxes:
+                cls_id = int(box.cls[0])
+                conf = float(box.conf[0])
                 
                 
+                original_class_name = results[0].names[cls_id]
+                
+                
+                mapped_class_name = CLASS_MAPPING.get(original_class_name, original_class_name)
+                
+                
+                if conf > 0.5:
+                    detected_objects.append({
+                        "class": mapped_class_name,
+                        "conf": round(conf, 2)
+                    })
+            
+            
+            log_objs = ", ".join([f"{o['class']} ({o['conf']})" for o in detected_objects])
+            logging.info(f"[Кадр {filename}] Найдено: {log_objs if log_objs else 'Ничего'}")
+            
+            
+            payload = {
+                "stage_id": stage_id,
+                "detected_objects": detected_objects,
+                "calculated_volume": 0.0 
+            }
+            
+            try:
                 response = requests.post(API_URL, json=payload, timeout=5)
-                
-                if response.status_code == 200:
-                    logging.info(f"Телеметрия отправлена: {len(detected_objects)} объектов")
-                else:
-                    logging.error(f"Ошибка API: {response.text}")
-                    
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Нет связи с сервером: {e}. Данные можно сохранить локально и отправить позже.")
+                if response.status_code != 200:
+                    logging.error(f"❌ Ошибка сервера: {response.text}")
+            except requests.exceptions.ConnectionError:
+                logging.error("Сервер недоступен. Проверьте docker-compose.")
             
-        
-        
-        time.sleep(5)
+            
+            time.sleep(2)
+            
+        logging.info("Все кадры обработаны. Повтор через 10 секунд...")
+        time.sleep(10)
 
 if __name__ == "__main__":
-    main_loop()
+    run_demo()

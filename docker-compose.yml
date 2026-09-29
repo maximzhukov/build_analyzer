@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: buildercv-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: cv_admin
+      POSTGRES_PASSWORD: secret_password
+      POSTGRES_DB: buildercv_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: 
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: buildercv-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://cv_admin:secret_password@db:5432/buildercv_db
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: buildercv-frontend
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
