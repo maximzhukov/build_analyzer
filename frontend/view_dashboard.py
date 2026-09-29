@@ -131,7 +131,7 @@ def render_dashboard(project_id: int):
     else:
         st.info("Ожидание видеопотока. Сегодня активность техники еще не зафиксирована...")
 
-    st.subheader("График производства работ (Диаграмма Ганта)")
+    st.subheader("График производства работ")
     render_custom_gantt(stages, height=480)
     st.markdown("---")
 
