@@ -3,10 +3,6 @@ import argparse
 import os
 
 def shift_dates(input_file, output_file, days_to_shift):
-    """
-    Сдвигает даты в CSV файле на заданное количество дней (вперед или назад) 
-    и сохраняет/перезаписывает результат.
-    """
     try:
         
         df = pd.read_csv(input_file, sep=';')
