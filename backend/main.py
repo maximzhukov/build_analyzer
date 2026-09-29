@@ -162,7 +162,9 @@ def get_stage_history(stage_id: int, db: Session = Depends(get_db)):
     
     history = []
     
+   
     if today_records:
+       
         history.append({
             "time": (today_records[0].timestamp - timedelta(seconds=5)).strftime("%H:%M:%S"), 
             "volume": round(start_vol, 2)
