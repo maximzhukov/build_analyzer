@@ -143,7 +143,7 @@ def render_dashboard(project_id: int):
             use_container_width=True
         )
     st.markdown("---")
-    st.subheader("Визуальный контроль")
+    st.subheader("Таймлапс")
     if "active_media" not in st.session_state:
         st.session_state.active_media = "live"
 
@@ -167,8 +167,4 @@ def render_dashboard(project_id: int):
 
         if st.button("Таймлапс с начала дня", use_container_width=True, type="primary" if is_timelapse_active else "secondary"):
             st.session_state.active_media = "timelapse"
-            st.rerun()
-            
-        if st.button("Трансляция", use_container_width=True, type="primary" if is_live_active else "secondary"):
-            st.session_state.active_media = "live"
             st.rerun()

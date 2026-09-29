@@ -1,8 +1,6 @@
 *.pt
 __pycache__
-*.png
-*.jpg
-*.mp4
+
 env
 annotated_frames
 demo_frames

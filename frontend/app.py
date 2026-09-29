@@ -15,7 +15,7 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Выберите план (CSV файл)", type=["csv"])
     
     if uploaded_file is not None:
-        if st.button("Отправить и запустить NLP"):
+        if st.button("Отправить"):
             with st.spinner("Загрузка и обработка..."):
                 success = upload_plan_csv(PROJECT_ID, uploaded_file)
                 if success:
