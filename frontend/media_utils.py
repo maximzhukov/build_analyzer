@@ -19,10 +19,12 @@ def generate_timelapse(input_folder=DEFAULT_ANNOTATED_DIR, output_file="temp_tim
     images = sorted(glob.glob(f"{input_folder}/*.[jJ][pP][gG]") + glob.glob(f"{input_folder}/*.[pP][nN][gG]"))
     
     if not images:
+        print("[DEBUG] No images found in the input folder.")
         return False
         
     frame = cv2.imread(images[0])
     if frame is None:
+        print("[DEBUG] Failed to read the first image.")
         return False
         
     height, width, layers = frame.shape
@@ -33,6 +35,7 @@ def generate_timelapse(input_folder=DEFAULT_ANNOTATED_DIR, output_file="temp_tim
     
    
     if not video.isOpened():
+        print("[DEBUG] Failed to open video writer.")
         return False
     
    

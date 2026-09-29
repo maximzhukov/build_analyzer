@@ -25,7 +25,7 @@ with st.sidebar:
 st.title("BuilderCV Platform")
 
 
-tab_dashboard, tab_mapping = st.tabs(["Дашборд аналитики", "Маппинг этапов (NLP)"])
+tab_dashboard, tab_mapping = st.tabs(["Сводка", "План"])
 
 with tab_dashboard:
     render_dashboard(PROJECT_ID)

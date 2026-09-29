@@ -46,20 +46,19 @@ def render_dashboard(project_id: int):
                 delays.append({"name": name, "days": delay_days})
 
         if 0 < progress_pct < 100:
-           
             try:
                 resp = requests.get(f"{API_BASE_URL}/stages/{stage_id}/history", timeout=5)
-                history_data = resp.json() if resp.status_code == 200 else []
+                history_resp = resp.json() if resp.status_code == 200 else {}
             except:
-                history_data = []
+                history_resp = {}
 
-           
-            if not history_data:
+            # ЕСЛИ СЕГОДНЯ НЕ БЫЛО АКТИВНОСТИ - СКРЫВАЕМ ЭТАП
+            if not history_resp.get("has_today_activity"):
                 continue
 
-           
-            start_vol = history_data[0]["volume"]
-            end_vol = history_data[-1]["volume"]
+            chart_data = history_resp.get("chart_data", [])
+            start_vol = history_resp.get("today_start_vol", 0)
+            end_vol = history_resp.get("today_end_vol", 0)
             today_pct = ((end_vol - start_vol) / target * 100) if target > 0 else 0
 
             active_details.append({
@@ -69,7 +68,8 @@ def render_dashboard(project_id: int):
                 "current_volume": current,
                 "cumulative_progress": round(progress_pct, 1),
                 "today_percent": round(today_pct, 1), 
-                "history_data": history_data
+                "chart_data": chart_data,
+                "today_increment": end_vol - start_vol
             })
 
     project_status = "Частично отстает от графика" if delays else "В графике"
@@ -80,7 +80,7 @@ def render_dashboard(project_id: int):
     st.markdown("---")
 
     if active_details:
-        st.info("Активные этапы (в работе за сегодня):")
+        st.info("Активности:")
         st.markdown("<br>", unsafe_allow_html=True)
         
         for i, activity in enumerate(active_details, 1):
@@ -100,20 +100,23 @@ def render_dashboard(project_id: int):
                     use_container_width=True,
                 )
                 
-                history_data = activity["history_data"]
-                if history_data:
-                    chart_data = pd.DataFrame(history_data)
+                chart_data = activity["chart_data"]
+                if chart_data:
+                    chart_df = pd.DataFrame(chart_data)
+                    chart_df["time"] = pd.to_datetime(chart_df["time"], format='ISO8601')
                     fig = px.line(
-                        chart_data, x="time", y="volume", 
-                        title="Динамика объема работ (real-time)",
+                        chart_df, x="time", y="volume", 
+                        title="Динамика объема работ:",
                         markers=True, line_shape="hv"
                     )
                     fig.update_traces(line_color="#FF9F1C", line_width=3)
-                    fig.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0), xaxis_title="Время", yaxis_title="Объем (м3)")
+                    fig.update_layout(height=280, margin=dict(l=0, r=0, t=40, b=0), xaxis_title="Дата и время", yaxis_title="Объем (м3)")
+                    # Настраиваем красивый формат оси X (день.месяц Часы:Минуты)
+                    fig.update_xaxes(tickformat="%d.%m\n%H:%M")
+                    
                     st.plotly_chart(fig, use_container_width=True)
 
-                    today_increment = history_data[-1]["volume"] - history_data[0]["volume"]
-                    speed_per_day = today_increment if today_increment > 0 else activity["current_volume"]
+                    speed_per_day = activity["today_increment"] if activity["today_increment"] > 0 else activity["current_volume"]
                     
                     remaining_volume = activity["total_volume"] - activity["current_volume"]
                     if speed_per_day > 0 and remaining_volume > 0:
@@ -128,6 +131,10 @@ def render_dashboard(project_id: int):
     else:
         st.info("Ожидание видеопотока. Сегодня активность техники еще не зафиксирована...")
 
+    st.subheader("График производства работ (Диаграмма Ганта)")
+    render_custom_gantt(stages, height=480)
+    st.markdown("---")
+
     if delays:
         st.error("Отставания:")
         st.dataframe(
@@ -135,12 +142,7 @@ def render_dashboard(project_id: int):
             hide_index=True,
             use_container_width=True
         )
-        st.markdown("---")  
-
-    st.subheader("График производства работ (Диаграмма Ганта)")
-    render_custom_gantt(stages, height=480)
     st.markdown("---")
-    
     st.subheader("Визуальный контроль")
     if "active_media" not in st.session_state:
         st.session_state.active_media = "live"

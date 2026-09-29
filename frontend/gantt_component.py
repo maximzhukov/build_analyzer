@@ -17,7 +17,6 @@ def render_custom_gantt(stages, height=480):
     df['Начало_dt'] = pd.to_datetime(df['start_date'])
     df['Окончание_dt'] = pd.to_datetime(df['end_date'])
     
-    
     min_date = df['Начало_dt'].min() - timedelta(days=3)
     max_date = df['Окончание_dt'].max() + timedelta(days=14)
     date_range = pd.date_range(start=min_date, end=max_date)
@@ -25,7 +24,6 @@ def render_custom_gantt(stages, height=480):
     
     today = pd.Timestamp.today().normalize()
     today_pos = (today - min_date).days + 0.5 
-    
     
     ru_months = {1: 'Янв', 2: 'Фев', 3: 'Мар', 4: 'Апр', 5: 'Май', 6: 'Июн', 7: 'Июл', 8: 'Авг', 9: 'Сен', 10: 'Окт', 11: 'Ноя', 12: 'Дек'}
     months_html, days_html, month_lines_html = "", "", ""
@@ -47,7 +45,6 @@ def render_custom_gantt(stages, height=480):
         months_html += f'<div class="month-cell" style="--days: {days_in_month};">{current_month}</div>'
         month_lines_html += f'<div class="month-line" style="left: calc(var(--day-w) * {month_start_offset});"></div>'
 
-    
     left_rows_html, right_rows_html = "", ""
     
     for idx, row in df.iterrows():
@@ -120,7 +117,14 @@ def render_custom_gantt(stages, height=480):
             .bar-bg {{ position: absolute; top: 8px; height: 26px; background: var(--bar-bg); border-radius: 4px; display: flex; align-items: center; overflow: hidden; z-index: 10; transition: left 0.3s ease, width 0.3s ease; }}
             .bar-bg:hover {{ filter: brightness(0.95); cursor: pointer; }}
             .bar-fill {{ height: 100%; background: var(--bar-fill); border-radius: 4px; }}
-            .delay-bar {{ position: absolute; top: 17px; height: 8px; background: #EF4444; border-radius: 0 4px 4px 0; z-index: 5; transition: left 0.3s ease, width 0.3s ease; }}
+            
+            /* 🔴 НОВЫЕ СТИЛИ: Отставание в виде геометрического отрезка |---| */
+            .delay-bar {{ position: absolute; top: 20px; height: 2px; background: #EF4444; z-index: 5; transition: left 0.3s ease, width 0.3s ease; }}
+            .delay-bar::before, .delay-bar::after {{ content: ''; position: absolute; top: -4px; width: 2px; height: 10px; background: #EF4444; }}
+            .delay-bar::before {{ left: 0; }}
+            .delay-bar::after {{ right: 0; }}
+            /* ------------------------------------------------------------------ */
+            
             .today-line {{ position: absolute; top: 0; bottom: 0; width: 2px; border-left: 2px dashed #3B82F6; z-index: 15; pointer-events: none; transition: left 0.3s ease; }}
         </style>
     </head>

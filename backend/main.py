@@ -114,17 +114,43 @@ async def upload_project_plan(
     
     db.commit()
     
-   
+    # 🔴 МАГИЯ РАЗМАЗЫВАНИЯ ОБЪЕМА ПО ДНЯМ 
+    today = datetime.utcnow().date()
+    yesterday = today - timedelta(days=1)
+
     for stage in db.query(models.Stage).filter(models.Stage.project_id == project.id).all():
         if stage.current_volume > 0:
-            init_telemetry = models.Telemetry(
-                stage_id=stage.id,
-                detected_objects=[{"class": "system_init", "conf": 1.0}],
-                calculated_volume=stage.current_volume,
-                timestamp=datetime.utcnow() - timedelta(days=1)
-            )
-            db.add(init_telemetry)
+            # Берем дату начала, либо вчера (если даты нет)
+            start_d = stage.start_date.date() if stage.start_date else yesterday
+            end_d = yesterday
             
+            # Если этап начался в будущем, рисуем прогресс только на вчерашний день
+            if end_d < start_d:
+                start_d = end_d
+                
+            days_diff = (end_d - start_d).days + 1
+            if days_diff < 1: 
+                days_diff = 1
+                
+            vol_per_day = stage.current_volume / days_diff
+            current_accumulated = 0.0
+            
+            # Генерируем точки на каждый прошедший день
+            for i in range(days_diff):
+                current_d = start_d + timedelta(days=i)
+                current_accumulated += vol_per_day
+                
+                # Ставим точку на конец смены (18:00) каждого дня
+                timestamp = datetime.combine(current_d, datetime.min.time()) + timedelta(hours=18)
+                
+                init_telemetry = models.Telemetry(
+                    stage_id=stage.id,
+                    detected_objects=[{"class": "system_init", "conf": 1.0}],
+                    calculated_volume=round(current_accumulated, 2),
+                    timestamp=timestamp
+                )
+                db.add(init_telemetry)
+                
     db.commit()
     run_nlp_mapping_pipeline(db, project.id)
 
@@ -146,7 +172,7 @@ def receive_telemetry(
 
 @app.get("/stages/{stage_id}/history")
 def get_stage_history(stage_id: int, db: Session = Depends(get_db)):
-    """Возвращает историю прироста объема ТОЛЬКО ЗА СЕГОДНЯ"""
+    """Возвращает ПОЛНУЮ историю для графика + метаданные за сегодня"""
     records = db.query(models.Telemetry).filter(
         models.Telemetry.stage_id == stage_id,
         models.Telemetry.calculated_volume > 0
@@ -154,25 +180,24 @@ def get_stage_history(stage_id: int, db: Session = Depends(get_db)):
     
     today = datetime.utcnow().date()
     
-   
     today_records = [r for r in records if r.timestamp.date() == today]
     past_records = [r for r in records if r.timestamp.date() < today]
     
     start_vol = past_records[-1].calculated_volume if past_records else 0
+    end_vol = records[-1].calculated_volume if records else 0
     
     history = []
     
-   
-    if today_records:
-       
+    # Отдаем ВСЮ историю с точными ISO датами
+    for r in records:
         history.append({
-            "time": (today_records[0].timestamp - timedelta(seconds=5)).strftime("%H:%M:%S"), 
-            "volume": round(start_vol, 2)
+            "time": r.timestamp.isoformat(), 
+            "volume": round(r.calculated_volume, 2)
         })
-        for r in today_records:
-            history.append({
-                "time": r.timestamp.strftime("%H:%M:%S"), 
-                "volume": round(r.calculated_volume, 2)
-            })
             
-    return history
+    return {
+        "chart_data": history,
+        "today_start_vol": start_vol,
+        "today_end_vol": end_vol,
+        "has_today_activity": len(today_records) > 0
+    }
